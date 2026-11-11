@@ -47,16 +47,18 @@ npm install
 
 ### Environment Configuration
 
-Create a `.env.local` file in the project root and add the Supabase project configuration:
+Create a `.env.local` file in the project root and add the shared SkillBridge AI Supabase configuration:
 
 ```env
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_publishable_key
+NEXT_PUBLIC_SUPABASE_URL=https://uccyqmearvavwyvfvmyc.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_zXhzmMuRbgVCii7NJjwAWQ_pPZ0nd_c
 ```
 
-Ask the project administrator for the shared Project URL and Publishable Key. The variable name `NEXT_PUBLIC_SUPABASE_ANON_KEY` is retained for compatibility with the current project code; its value should be the Supabase Publishable Key.
+All team members use the same Project URL and Publishable Key, but each person must create their own local `.env.local` file. The variable name `NEXT_PUBLIC_SUPABASE_ANON_KEY` is retained for compatibility with the current project code; its value is the Supabase Publishable Key.
 
-Never commit `.env.local` or expose a Supabase Secret Key. See [Environment Setup](docs/03-environment-setup.md) for details.
+The Publishable Key is intended for client-side applications. Never expose or commit a Supabase Secret Key (such as an `sb_secret_...` key). Keep Row Level Security (RLS) enabled and configure appropriate policies before storing real user data. Never commit `.env.local` to Git.
+
+See [Environment Setup](docs/03-environment-setup.md) for details.
 
 ### Run the Development Server
 
