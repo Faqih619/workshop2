@@ -32,39 +32,93 @@ Install the following before setting up the project:
 
 ### Installation
 
-Clone the repository:
+Follow these steps to download and set up SkillBridge AI on your computer.
 
-```bash
+#### Step 1: Choose a location for the project
+
+First, decide where you want to store the project, such as:
+
+- `C:\Users\YourName\Desktop`
+- `C:\Users\YourName\Documents`
+- `D:\Projects`
+
+**Tip: Open PowerShell directly inside a folder**
+
+You do not need to navigate through folders manually using PowerShell commands.
+
+1. Open File Explorer.
+2. Navigate to the folder where you want to store the project (for example, Desktop).
+3. Click the address bar at the top of File Explorer.
+4. Type `powershell` and press Enter.
+
+PowerShell will open directly at that folder's location. You can also type `cmd` to open Command Prompt instead.
+
+![How to open PowerShell in the selected folder](docs/images/open-powershell-in-folder.svg)
+
+#### Step 2: Clone the GitHub repository
+
+In the PowerShell window, run:
+
+```powershell
 git clone https://github.com/Faqih619/workshop2.git
+```
+
+This downloads the project into a new folder named `workshop2`.
+
+Move into the project directory:
+
+```powershell
 cd workshop2
 ```
 
-#### Windows (recommended)
+**Important:** Run `git clone` from the parent folder where you want the project directory to be created. Do not run it inside an existing `workshop2` folder.
 
-Run the setup script from the project root:
+#### Step 3: Run the setup script (Windows)
+
+Make sure your PowerShell terminal is inside the `workshop2` project directory.
+
+Run:
 
 ```powershell
 .\setup.bat
 ```
 
-The script checks that Git, Node.js and npm are installed, creates `.env.local` from `.env.example` if the file does not already exist, and installs project dependencies with `npm install`.
+The script will automatically:
 
-If a required tool is missing, install it first:
+- Check whether Git, Node.js and npm are installed.
+- Create `.env.local` using `.env.example` if it does not already exist.
+- Install the required project dependencies using `npm install`.
+
+If Git or Node.js is missing, install it first:
 
 - [Git](https://git-scm.com/downloads)
 - [Node.js (LTS)](https://nodejs.org/)
 
-The setup script does not overwrite an existing `.env.local`.
+The setup script does not overwrite an existing `.env.local` file.
 
-#### Manual setup (all platforms)
+#### Step 4: Start the development server
 
-If you prefer, or if you are not using Windows, install dependencies:
+After setup completes, run:
+
+```powershell
+npm run dev
+```
+
+Open your browser and visit:
+
+[http://localhost:3000](http://localhost:3000)
+
+You should now see the SkillBridge AI application running locally.
+
+#### Alternative: Manual installation
+
+If you prefer not to use the setup script, or if you are not using Windows, run:
 
 ```bash
 npm install
 ```
 
-Then create a `.env.local` file in the project root using the configuration below.
+Then create your own `.env.local` file in the project root using the configuration below.
 
 ### Environment Configuration
 
