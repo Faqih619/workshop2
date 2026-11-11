@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="620" viewBox="0 0 1200 620">
+  <rect width="1200" height="620" fill="#f3f4f6"/>
+  <rect x="55" y="45" width="1090" height="245" rx="18" fill="#ffffff" stroke="#cbd5e1" stroke-width="3"/>
+  <rect x="55" y="45" width="1090" height="54" rx="18" fill="#e5e7eb"/>
+  <circle cx="88" cy="72" r="9" fill="#ef4444"/><circle cx="118" cy="72" r="9" fill="#f59e0b"/><circle cx="148" cy="72" r="9" fill="#22c55e"/>
+  <text x="92" y="145" font-family="Arial, sans-serif" font-size="27" fill="#334155">File Explorer — open the folder where you want the project</text>
+  <rect x="92" y="174" width="1016" height="72" rx="10" fill="#ffffff" stroke="#64748b" stroke-width="3"/>
+  <text x="125" y="220" font-family="Arial, sans-serif" font-size="30" fill="#64748b">C:\Users\YourName\Desktop</text>
+  <rect x="660" y="182" width="430" height="56" rx="7" fill="#dbeafe" stroke="#2563eb" stroke-width="3"/>
+  <text x="690" y="220" font-family="Arial, sans-serif" font-size="31" font-weight="bold" fill="#1d4ed8">powershell</text>
+  <path d="M600 315 L600 365" stroke="#2563eb" stroke-width="8" stroke-linecap="round"/>
+  <path d="M580 346 L600 370 L620 346" fill="none" stroke="#2563eb" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="55" y="390" width="1090" height="175" rx="18" fill="#111827"/>
+  <text x="95" y="445" font-family="Arial, sans-serif" font-size="28" fill="#9ca3af">Windows PowerShell</text>
+  <text x="95" y="505" font-family="Consolas, monospace" font-size="32" fill="#ffffff">PS C:\Users\YourName\Desktop&gt;</text>
+  <text x="95" y="545" font-family="Arial, sans-serif" font-size="22" fill="#93c5fd">PowerShell opens directly in the selected folder.</text>
+</svg>
