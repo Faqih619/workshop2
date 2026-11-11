@@ -39,11 +39,32 @@ git clone https://github.com/Faqih619/workshop2.git
 cd workshop2
 ```
 
-Install dependencies:
+#### Windows (recommended)
+
+Run the setup script from the project root:
+
+```powershell
+.\setup.bat
+```
+
+The script checks that Git, Node.js and npm are installed, creates `.env.local` from `.env.example` if the file does not already exist, and installs project dependencies with `npm install`.
+
+If a required tool is missing, install it first:
+
+- [Git](https://git-scm.com/downloads)
+- [Node.js (LTS)](https://nodejs.org/)
+
+The setup script does not overwrite an existing `.env.local`.
+
+#### Manual setup (all platforms)
+
+If you prefer, or if you are not using Windows, install dependencies:
 
 ```bash
 npm install
 ```
+
+Then create a `.env.local` file in the project root using the configuration below.
 
 ### Environment Configuration
 
@@ -54,7 +75,9 @@ NEXT_PUBLIC_SUPABASE_URL=https://uccyqmearvavwyvfvmyc.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_zXhzmMuRbgVCii7NJjwAWQ_pPZ0nd_c
 ```
 
-All team members use the same Project URL and Publishable Key, but each person must create their own local `.env.local` file. The variable name `NEXT_PUBLIC_SUPABASE_ANON_KEY` is retained for compatibility with the current project code; its value is the Supabase Publishable Key.
+All team members use the same Project URL and Publishable Key, but each person must have their own local `.env.local` file. On Windows, `setup.bat` copies these values from `.env.example` automatically when `.env.local` is missing.
+
+The variable name `NEXT_PUBLIC_SUPABASE_ANON_KEY` is retained for compatibility with the current project code; its value is the Supabase Publishable Key.
 
 The Publishable Key is intended for client-side applications. Never expose or commit a Supabase Secret Key (such as an `sb_secret_...` key). Keep Row Level Security (RLS) enabled and configure appropriate policies before storing real user data. Never commit `.env.local` to Git.
 
