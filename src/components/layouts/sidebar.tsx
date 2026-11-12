@@ -29,7 +29,7 @@ export default function Sidebar({
   const pathname = usePathname();
 
   return (
-    <aside className="flex h-screen w-[280px] shrink-0 flex-col bg-sidebar px-5 py-6 text-white">
+    <aside className="sticky top-0 flex h-screen w-[280px] shrink-0 flex-col bg-sidebar px-5 py-6 text-white">
 
       {/* 1. Branding */}
       <div className="mb-10 flex items-center gap-3">
