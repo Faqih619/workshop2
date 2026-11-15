@@ -1,7 +1,6 @@
-
 "use client";
 
-import type { ReactNode } from "react";
+import { type ReactNode, Suspense } from "react";
 
 import Sidebar from "./sidebar";
 import TopNavbar from "./top-navbar";
@@ -19,7 +18,6 @@ interface AppShellProps {
   children: ReactNode;
 }
 
-
 const workspaceConfig = {
   student: {
     workspaceLabel: "Student Workspace",
@@ -34,38 +32,34 @@ const workspaceConfig = {
     accountEmail: "employer@company.com",
   },
   admin: {
-  workspaceLabel: "Admin Workspace",
-  institutionName: "SkillBridge AI Administration",
-  accountName: "Administrator",
-  accountEmail: "admin@skillbridge.ai",
-},
+    workspaceLabel: "Admin Workspace",
+    institutionName: "SkillBridge AI Administration",
+    accountName: "Administrator",
+    accountEmail: "admin@skillbridge.ai",
+  },
 };
 
-export default function AppShell({
-  role,
-  children,
-}: AppShellProps) {
+function ShellContent({ role, children }: AppShellProps) {
   const navigation =
-  role === "student"
-    ? studentNavigation
-    : role === "employer"
-      ? employerNavigation
-      : adminNavigation;
+    role === "student"
+      ? studentNavigation
+      : role === "employer"
+        ? employerNavigation
+        : adminNavigation;
 
   const config = workspaceConfig[role];
   const pathname = usePathname();
   const currentPage =
-  [...navigation]
-    .sort((a, b) => b.href.length - a.href.length)
-    .find(
-      (item) =>
-        pathname === item.href ||
-        pathname.startsWith(`${item.href}/`)
-    )?.name ?? "Dashboard";
+    [...navigation]
+      .sort((a, b) => b.href.length - a.href.length)
+      .find(
+        (item) =>
+          pathname === item.href ||
+          pathname.startsWith(`${item.href}/`)
+      )?.name ?? "Dashboard";
 
   return (
     <div className="flex min-h-screen bg-background">
-
       {/* Sidebar */}
       <Sidebar
         navigation={navigation}
@@ -77,10 +71,9 @@ export default function AppShell({
 
       {/* Main area */}
       <div className="flex min-w-0 flex-1 flex-col">
-
         <TopNavbar
-            workspace={config.workspaceLabel}
-            currentPage={currentPage}
+          workspace={config.workspaceLabel}
+          currentPage={currentPage}
         />
 
         <main className="flex-1 p-8">
@@ -88,8 +81,15 @@ export default function AppShell({
         </main>
 
         <Footer />
-
       </div>
     </div>
+  );
+}
+
+export default function AppShell({ role, children }: AppShellProps) {
+  return (
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-background text-sm text-gray-500">Loading workspace...</div>}>
+      <ShellContent role={role}>{children}</ShellContent>
+    </Suspense>
   );
 }
