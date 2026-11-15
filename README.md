@@ -6,11 +6,38 @@ SkillBridge AI is a student-focused platform designed to help users discover opp
 
 The project is organised into five main modules:
 
-1. **AI Resume Builder** — create and improve resumes.
-2. **Portfolio Generator** — generate a portfolio to showcase skills and achievements.
-3. **Opportunity Portal** — discover opportunities such as internships, micro-internships, hackathons and events.
-4. **AI Opportunity & Skill Gap Analyzer** — compare a user's skills with opportunity or career requirements.
-5. **Application Tracker** — manage applications and track their progress.
+### Module 1: User Profile and Skill Matrix
+- Register and Login
+- Manage Role-Based Access
+- Manage Academic Profile
+- Manage Skill Tags
+- Set Career Interest
+
+### Module 2: Opportunity and Event Hub
+- Publish Listing
+- Edit, Close and Delete Listing
+- Browse and View Listing
+- Categorize and Filter Listing
+
+### Module 3: Application and Milestone Execution Tracker
+- Submit Application
+- Track Application Status
+- Review Applications (Employer)
+- Upload Deliverables
+- Record Sign-off and rating
+
+### Module 4: AI Opportunity Analyzer and Skill Gap Engineer
+- Analyze Compatibility
+- Display Match Percentage and Explanation
+- Identify Missing Skills
+- Recommend Learning Path
+- Recommend Opportunities
+
+### Module 5: AI Resume and Verified Portfolio Generator
+- Compile Verified Records
+- Generate Resume Content
+- Review and Edit Content
+- Download PDF Resume
 
 ## Technology Stack
 
