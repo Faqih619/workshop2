@@ -1,3 +1,4 @@
+
 @import "tailwindcss";
 
 :root {
@@ -36,12 +37,25 @@
 
 html,
 body {
+  width: 100%;
   min-height: 100%;
+}
+
+html {
+  overflow-x: clip;
 }
 
 body {
   margin: 0;
+  overflow-x: clip;
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-inter), Arial, Helvetica, sans-serif;
+}
+
+img,
+video,
+canvas,
+svg {
+  max-width: 100%;
 }

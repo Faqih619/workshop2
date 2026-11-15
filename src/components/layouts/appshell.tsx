@@ -9,7 +9,6 @@ import Footer from "./footer";
 import { studentNavigation } from "@/lib/navigation/student-nav";
 import { employerNavigation } from "@/lib/navigation/employer-nav";
 import { adminNavigation } from "@/lib/navigation/admin-nav";
-import { usePathname } from "next/navigation";
 
 type UserRole = "student" | "employer" | "admin";
 
@@ -49,6 +48,7 @@ function ShellContent({ role, children }: AppShellProps) {
 
   const config = workspaceConfig[role];
   const pathname = usePathname();
+
   const currentPage =
     [...navigation]
       .sort((a, b) => b.href.length - a.href.length)
@@ -67,6 +67,8 @@ function ShellContent({ role, children }: AppShellProps) {
         institutionName={config.institutionName}
         accountName={config.accountName}
         accountEmail={config.accountEmail}
+        mobileOpen={mobileOpen}
+        onMobileClose={() => setMobileOpen(false)}
       />
 
       {/* Main area */}
@@ -76,9 +78,9 @@ function ShellContent({ role, children }: AppShellProps) {
           currentPage={currentPage}
         />
 
-        <main className="flex-1 p-8">
+        {/* Scrollable page content */}
+        <main className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-4 sm:p-6 xl:p-8">
           {children}
-        </main>
 
         <Footer />
       </div>
