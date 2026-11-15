@@ -1,9 +1,6 @@
-
 "use client";
 
-import { useState } from "react";
-import type { ReactNode } from "react";
-import { usePathname } from "next/navigation";
+import { type ReactNode, Suspense } from "react";
 
 import Sidebar from "./sidebar";
 import TopNavbar from "./top-navbar";
@@ -41,12 +38,7 @@ const workspaceConfig = {
   },
 };
 
-export default function AppShell({
-  role,
-  children,
-}: AppShellProps) {
-  const [mobileOpen, setMobileOpen] = useState(false);
-
+function ShellContent({ role, children }: AppShellProps) {
   const navigation =
     role === "student"
       ? studentNavigation
@@ -67,8 +59,7 @@ export default function AppShell({
       )?.name ?? "Dashboard";
 
   return (
-    <div className="flex h-dvh min-h-0 w-full overflow-hidden bg-background">
-
+    <div className="flex min-h-screen bg-background">
       {/* Sidebar */}
       <Sidebar
         navigation={navigation}
@@ -81,22 +72,26 @@ export default function AppShell({
       />
 
       {/* Main area */}
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-
+      <div className="flex min-w-0 flex-1 flex-col">
         <TopNavbar
           workspace={config.workspaceLabel}
           currentPage={currentPage}
-          onMenuClick={() => setMobileOpen(true)}
         />
 
         {/* Scrollable page content */}
         <main className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-4 sm:p-6 xl:p-8">
           {children}
 
-          <Footer />
-        </main>
-
+        <Footer />
       </div>
     </div>
+  );
+}
+
+export default function AppShell({ role, children }: AppShellProps) {
+  return (
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-background text-sm text-gray-500">Loading workspace...</div>}>
+      <ShellContent role={role}>{children}</ShellContent>
+    </Suspense>
   );
 }
