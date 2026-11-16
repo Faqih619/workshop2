@@ -23,3 +23,7 @@ export default function EditPublishedOpportunity() {
     </div>
   );
 }
+
+/* 
+  [Ponytail Log: Kept the redirect trampoline pristine; reuses the create form with query params to eliminate code duplication entirely.]
+*/
