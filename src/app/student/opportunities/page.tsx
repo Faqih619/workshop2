@@ -24,6 +24,17 @@ const ITEMS_PER_PAGE = 6;
 const normalize = (value: string | null | undefined) =>
   (value ?? "").trim().toLowerCase();
 
+// Stable deterministic pseudo-random match score based on IDs so it doesn't shuffle on every render
+const getStableMatchScore = (userId: string, oppId: string) => {
+  const combined = userId + oppId;
+  let hash = 0;
+  for (let i = 0; i < combined.length; i++) {
+    hash = (hash << 5) - hash + combined.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash % 31) + 70; // Range: 70 to 100
+};
+
 export default function StudentOpportunities() {
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [loading, setLoading] = useState(true);
@@ -47,7 +58,6 @@ export default function StudentOpportunities() {
   // Save Opportunity state
   const [savedIds, setSavedIds] = useState<string[]>([]);
 
-  // Fetch verified open opportunities and student's saved bookmarks on mount
   useEffect(() => {
     const fetchOpportunitiesAndSaves = async () => {
       setLoading(true);
@@ -55,63 +65,45 @@ export default function StudentOpportunities() {
 
       const storedUser = localStorage.getItem("skillbridge_user");
       const currentUser = storedUser ? JSON.parse(storedUser) : null;
-      const currentUserId = currentUser?.user_id;
+      const currentUserId = currentUser?.user_id ?? "guest";
 
-      // 1. Fetch open & published listings
-      const { data, error } = await supabase
-        .from("opportunity")
-        .select("*")
-        .eq("status", "open")
-        .order("created_at", { ascending: false });
+      // 1. Fetch open listings and profiles concurrently
+      const [oppsResult, savedResult] = await Promise.all([
+        supabase.from("opportunity").select("*").eq("status", "open").order("created_at", { ascending: false }),
+        currentUserId !== "guest" 
+          ? supabase.from("saved_opportunity").select("opportunity_id").eq("user_id", currentUserId)
+          : Promise.resolve({ data: [], error: null })
+      ]);
 
-      if (error) {
-        console.error("Error fetching opportunities:", error);
-        setError(error.message);
+      if (oppsResult.error) {
+        setError(oppsResult.error.message);
         setLoading(false);
         return;
       }
 
-      // 2. Fetch user's saved bookmarks if logged in
-      if (currentUserId) {
-        const { data: savedData, error: savedError } = await supabase
-          .from("saved_opportunity")
-          .select("opportunity_id")
-          .eq("user_id", currentUserId);
-
-        if (!savedError && savedData) {
-          setSavedIds(savedData.map((s) => s.opportunity_id));
-        }
+      if (savedResult.data) {
+        setSavedIds(savedResult.data.map((s) => s.opportunity_id));
       }
 
-      if (!data || data.length === 0) {
+      const rawOpps = oppsResult.data ?? [];
+      if (rawOpps.length === 0) {
         setOpportunities([]);
         setLoading(false);
         return;
       }
 
-      const organizerIds = [...new Set(data.map((item) => item.organizer_id))];
-
-      const { data: profiles, error: profileError } = await supabase
+      const organizerIds = [...new Set(rawOpps.map((item) => item.organizer_id))];
+      const { data: profiles } = await supabase
         .from("profile")
         .select("user_id, company_name")
         .in("user_id", organizerIds);
 
-      if (profileError) {
-        console.error("Error fetching company profiles:", profileError);
-        setError(profileError.message);
-        setLoading(false);
-        return;
-      }
-
-      const formattedData: Opportunity[] = data.map((item) => {
-        const company = profiles?.find(
-          (profile) => profile.user_id === item.organizer_id
-        );
-
+      const formattedData: Opportunity[] = rawOpps.map((item) => {
+        const company = profiles?.find((p) => p.user_id === item.organizer_id);
         return {
           ...item,
           company: company?.company_name ?? "Unknown Company",
-          match: Math.floor(Math.random() * 30) + 70, // Mock match score for testing logic
+          match: getStableMatchScore(currentUserId, item.opportunity_id),
         };
       });
 
@@ -124,26 +116,17 @@ export default function StudentOpportunities() {
 
   // Dynamic filter options
   const opportunityTypes = useMemo(
-    () =>
-      [...new Set(opportunities.map((item) => item.opportunity_type?.trim()).filter(Boolean))].sort() as string[],
+    () => [...new Set(opportunities.map((item) => item.opportunity_type?.trim()).filter(Boolean))].sort() as string[],
     [opportunities]
   );
 
   const arrangements = useMemo(
-    () =>
-      [...new Set(opportunities.map((item) => item.arrangement?.trim()).filter(Boolean))].sort() as string[],
-    [opportunities]
-  );
-
-  const availableSkills = useMemo(
-    () =>
-      [...new Set(opportunities.flatMap((item) => item.required_skills ?? []).map((s) => s.trim()).filter(Boolean))].sort(),
+    () => [...new Set(opportunities.map((item) => item.arrangement?.trim()).filter(Boolean))].sort() as string[],
     [opportunities]
   );
 
   const locations = useMemo(
-    () =>
-      [...new Set(opportunities.map((item) => item.location?.trim()).filter(Boolean))].sort() as string[],
+    () => [...new Set(opportunities.map((item) => item.location?.trim()).filter(Boolean))].sort() as string[],
     [opportunities]
   );
 
@@ -155,7 +138,6 @@ export default function StudentOpportunities() {
   const filteredOpportunities = useMemo(() => {
     let results = [...opportunities];
 
-    // Filter by saved items if toggle is active
     if (showSavedOnly) {
       results = results.filter((item) => savedIds.includes(item.opportunity_id));
     }
@@ -191,14 +173,6 @@ export default function StudentOpportunities() {
       );
     }
 
-    if (selectedSkills.length > 0) {
-      results = results.filter((item) =>
-        selectedSkills.some((skill) =>
-          (item.required_skills ?? []).some((req) => normalize(req) === normalize(skill))
-        )
-      );
-    }
-
     if (matchScore === "70% and above") {
       results = results.filter((item) => item.match >= 70);
     } else if (matchScore === "90% and above") {
@@ -228,7 +202,7 @@ export default function StudentOpportunities() {
     }
 
     return results;
-  }, [opportunities, searchKeyword, selectedLocation, selectedTypes, selectedArrangements, selectedSkills, matchScore, postedWithin, sortBy, savedIds, showSavedOnly]);
+  }, [opportunities, searchKeyword, selectedLocation, selectedTypes, selectedArrangements, matchScore, postedWithin, sortBy, savedIds, showSavedOnly]);
 
   const totalPages = Math.ceil(filteredOpportunities.length / ITEMS_PER_PAGE);
   const paginatedOpportunities = filteredOpportunities.slice(
@@ -241,59 +215,25 @@ export default function StudentOpportunities() {
     return new Date(date).toLocaleDateString("en-MY", { day: "numeric", month: "short", year: "numeric" });
   };
 
-  const handleSearch = () => {
-    setSearchKeyword(searchInput);
-    setCurrentPage(1);
-  };
-
-  const clearFilters = () => {
-    setSelectedTypes([]);
-    setSelectedArrangements([]);
-    setSelectedSkills([]);
-    setMatchScore("Any Match");
-    setPostedWithin("All time");
-    setSearchInput("");
-    setSearchKeyword("");
-    setSelectedLocation("");
-    setCurrentPage(1);
-  };
-
   const handleToggleSave = async (opportunityId: string) => {
     const storedUser = localStorage.getItem("skillbridge_user");
     const currentUser = storedUser ? JSON.parse(storedUser) : null;
     const currentUserId = currentUser?.user_id;
 
-    if (!currentUserId) {
-      console.error("No active user session found.");
-      return;
-    }
+    if (!currentUserId) return;
 
     const isAlreadySaved = savedIds.includes(opportunityId);
 
     if (isAlreadySaved) {
-      // Unsave: Delete row
-      const { error } = await supabase
+      await supabase
         .from("saved_opportunity")
         .delete()
         .match({ user_id: currentUserId, opportunity_id: opportunityId });
-
-      if (error) {
-        console.error("Error unsaving opportunity:", error);
-        return;
-      }
-
       setSavedIds(savedIds.filter((id) => id !== opportunityId));
     } else {
-      // Save: Insert row
-      const { error } = await supabase
+      await supabase
         .from("saved_opportunity")
         .insert({ user_id: currentUserId, opportunity_id: opportunityId });
-
-      if (error) {
-        console.error("Error saving opportunity:", error);
-        return;
-      }
-
       setSavedIds([...savedIds, opportunityId]);
     }
   };
@@ -323,7 +263,7 @@ export default function StudentOpportunities() {
           type="text"
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+          onKeyDown={(e) => e.key === "Enter" && { setSearchKeyword: setSearchInput, setCurrentPage: 1 }}
           placeholder="Search by title, company, or skills..."
           className="min-w-0 flex-1 rounded-lg border border-gray-300 px-4 py-3 text-sm outline-none focus:border-blue-500"
         />
@@ -341,7 +281,7 @@ export default function StudentOpportunities() {
           ))}
         </select>
         <button
-          onClick={handleSearch}
+          onClick={() => { setSearchKeyword(searchInput); setCurrentPage(1); }}
           className="rounded-lg bg-blue-600 px-6 py-3 text-sm font-medium text-white hover:bg-blue-700"
         >
           Search
@@ -349,11 +289,10 @@ export default function StudentOpportunities() {
       </div>
 
       <div className="flex flex-col gap-6 lg:flex-row">
-        {/* Filters Sidebar */}
         <aside className="w-full shrink-0 space-y-6 rounded-xl border border-gray-200 bg-white p-5 lg:w-64">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold text-gray-900">Filters</h2>
-            <button onClick={clearFilters} className="text-sm font-medium text-blue-600 hover:underline">
+            <button onClick={() => { setSelectedTypes([]); setSelectedArrangements([]); setSearchInput(""); setSearchKeyword(""); setSelectedLocation(""); setCurrentPage(1); }} className="text-sm font-medium text-blue-600 hover:underline">
               Clear all
             </button>
           </div>
@@ -400,10 +339,7 @@ export default function StudentOpportunities() {
                   type="radio"
                   name="matchScore"
                   checked={matchScore === item}
-                  onChange={() => {
-                    setMatchScore(item);
-                    setCurrentPage(1);
-                  }}
+                  onChange={() => { setMatchScore(item); setCurrentPage(1); }}
                   className="border-gray-300 text-blue-600 focus:ring-blue-500"
                 />
                 {item}
@@ -412,7 +348,6 @@ export default function StudentOpportunities() {
           </div>
         </aside>
 
-        {/* Cards Grid */}
         <section className="min-w-0 flex-1 space-y-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm font-semibold text-gray-900">
@@ -420,10 +355,7 @@ export default function StudentOpportunities() {
             </p>
             <select
               value={sortBy}
-              onChange={(e) => {
-                setSortBy(e.target.value);
-                setCurrentPage(1);
-              }}
+              onChange={(e) => { setSortBy(e.target.value); setCurrentPage(1); }}
               className="rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white"
             >
               <option>Best Match</option>

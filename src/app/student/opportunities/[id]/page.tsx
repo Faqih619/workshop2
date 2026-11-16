@@ -57,33 +57,25 @@ export default function OpportunityDetailPage() {
         return;
       }
 
-      // 2. Fetch company profile name
-      const { data: profileData } = await supabase
-        .from("profile")
-        .select("company_name")
-        .eq("user_id", oppData.organizer_id)
-        .maybeSingle();
-
-      // 3. Check if user already applied
       const storedUser = localStorage.getItem("skillbridge_user");
       const currentUser = storedUser ? JSON.parse(storedUser) : null;
-      
-      if (currentUser?.user_id) {
-        const { data: appData } = await supabase
-          .from("application")
-          .select("application_id")
-          .eq("student_id", currentUser.user_id)
-          .eq("opportunity_id", opportunityId)
-          .maybeSingle();
+      const currentUserId = currentUser?.user_id;
 
-        if (appData) {
-          setApplied(true);
-        }
+      // 2. Fetch profile and application status concurrently
+      const [profileRes, appRes] = await Promise.all([
+        supabase.from("profile").select("company_name").eq("user_id", oppData.organizer_id).maybeSingle(),
+        currentUserId 
+          ? supabase.from("application").select("application_id").eq("student_id", currentUserId).eq("opportunity_id", opportunityId).maybeSingle()
+          : Promise.resolve({ data: null })
+      ]);
+
+      if (appRes.data) {
+        setApplied(true);
       }
 
       setOpportunity({
         ...oppData,
-        company: profileData?.company_name ?? "Unknown Company",
+        company: profileRes.data?.company_name ?? "Unknown Company",
       });
       setLoading(false);
     };
@@ -120,7 +112,7 @@ export default function OpportunityDetailPage() {
       return;
     }
 
-    // Redirect to applications tracker
+    setApplied(true);
     router.push("/student/applications");
   };
 
