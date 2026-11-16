@@ -1,8 +1,7 @@
-
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import {
   Layers3,
@@ -26,11 +25,6 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [currentYear, setCurrentYear] = useState<number | null>(null);
-
-  useEffect(() => {
-    setCurrentYear(new Date().getFullYear());
-  }, []);
 
   async function handleLogin(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -38,19 +32,26 @@ export default function LoginPage() {
     setError("");
 
     try {
+      const cleanEmail = email.trim().toLowerCase();
       const { data, error: loginError } =
         await supabase.auth.signInWithPassword({
-          email: email.trim().toLowerCase(),
+          email: cleanEmail,
           password,
         });
 
       if (loginError) throw loginError;
 
-      const userRole = data.user.user_metadata?.role;
+      const { data: dbUser, error: dbError } = await supabase
+        .from("users")
+        .select("user_id, role")
+        .eq("email", cleanEmail)
+        .single();
 
-      if (userRole !== "student" && userRole !== "employer") {
+      const userRole = dbUser?.role ?? data.user.user_metadata?.role;
+
+      if (dbError || !dbUser || (userRole !== "student" && userRole !== "employer")) {
         await supabase.auth.signOut();
-        throw new Error("Invalid account role. Please contact support.");
+        throw new Error("Account record not found or invalid role.");
       }
 
       if (userRole !== role) {
@@ -63,8 +64,8 @@ export default function LoginPage() {
       localStorage.setItem(
         "skillbridge_user",
         JSON.stringify({
-          user_id: data.user.id,
-          email: data.user.email,
+          user_id: dbUser.user_id,
+          email: cleanEmail,
           role: userRole,
         })
       );
@@ -74,7 +75,6 @@ export default function LoginPage() {
           ? "/employer/dashboard"
           : "/student/dashboard"
       );
-
       router.refresh();
     } catch (err: unknown) {
       setError(
@@ -89,20 +89,15 @@ export default function LoginPage() {
 
   return (
     <main className="min-h-screen bg-white md:grid md:grid-cols-[41%_59%]">
-
       {/* LEFT BRAND PANEL */}
       <section className="hidden min-h-screen flex-col justify-between bg-[#1e293b] p-12 text-white md:flex lg:p-16">
-
         <div>
-          {/* SKILLBRIDGE AI LOGO */}
           <Link href="/" className="inline-flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-600">
               <Layers3 className="h-7 w-7 text-white" strokeWidth={2.2} />
             </div>
-
             <span className="text-2xl font-medium tracking-tight">
-              SkillBridge
-              <span className="ml-1 text-blue-400">AI</span>
+              SkillBridge<span className="ml-1 text-blue-400">AI</span>
             </span>
           </Link>
 
@@ -126,10 +121,7 @@ export default function LoginPage() {
             {/* CAREER CARD */}
             <div className="mt-14 rounded-xl bg-[#293a52] p-6 lg:p-7">
               <div className="mb-7 flex items-center justify-between">
-                <h2 className="font-semibold">
-                  Your career, in focus
-                </h2>
-
+                <h2 className="font-semibold">Your career, in focus</h2>
                 <span className="rounded-md bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-600">
                   Personalized
                 </span>
@@ -195,17 +187,14 @@ export default function LoginPage() {
       {/* RIGHT LOGIN PANEL */}
       <section className="flex min-h-screen items-center justify-center px-6 py-10 sm:px-12 lg:px-20">
         <div className="w-full max-w-2xl">
-
           {/* MOBILE LOGO */}
           <div className="mb-10 md:hidden">
             <Link href="/" className="inline-flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600">
                 <Layers3 className="h-6 w-6 text-white" strokeWidth={2.2} />
               </div>
-
               <span className="text-xl font-medium tracking-tight text-slate-900">
-                SkillBridge
-                <span className="ml-1 text-blue-600">AI</span>
+                SkillBridge<span className="ml-1 text-blue-600">AI</span>
               </span>
             </Link>
           </div>
@@ -221,16 +210,12 @@ export default function LoginPage() {
             </Link>
           </div>
 
-          <h1 className="text-3xl font-medium text-slate-800">
-            Welcome back
-          </h1>
-
+          <h1 className="text-3xl font-medium text-slate-800">Welcome back</h1>
           <p className="mt-3 text-sm text-slate-500">
             Sign in to take the next step in your career.
           </p>
 
           <form onSubmit={handleLogin} className="mt-8 space-y-6">
-
             {/* ROLE SELECTION */}
             <div>
               <label className="mb-3 block text-xs font-semibold text-slate-800">
@@ -371,7 +356,7 @@ export default function LoginPage() {
 
           {/* FOOTER */}
           <footer className="mt-16 flex justify-between text-xs text-slate-400">
-            <span>© {currentYear ?? ""} SkillBridge AI</span>
+            <span>© 2026 SkillBridge AI</span>
             <span>Privacy · Terms · Help</span>
           </footer>
         </div>
