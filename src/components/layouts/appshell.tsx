@@ -1,11 +1,12 @@
 "use client";
 
-import { type ReactNode, Suspense, useState } from "react";
-import { usePathname } from "next/navigation";
+import { type ReactNode, Suspense, useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 
 import Sidebar from "./sidebar";
 import TopNavbar from "./top-navbar";
 import Footer from "./footer";
+import { supabase } from "@/lib/supabase/client";
 
 import { studentNavigation } from "@/lib/navigation/student-nav";
 import { employerNavigation } from "@/lib/navigation/employer-nav";
@@ -41,6 +42,9 @@ const workspaceConfig = {
 
 function ShellContent({ role, children }: AppShellProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [userInfo, setUserInfo] = useState<{ name?: string; email?: string }>({});
+  const router = useRouter();
+  const pathname = usePathname();
 
   const navigation =
     role === "student"
@@ -50,31 +54,78 @@ function ShellContent({ role, children }: AppShellProps) {
         : adminNavigation;
 
   const config = workspaceConfig[role];
-  const pathname = usePathname();
 
-  const currentPage =
-    [...navigation]
-      .sort((a, b) => b.href.length - a.href.length)
-      .find(
-        (item) =>
-          pathname === item.href ||
-          pathname.startsWith(`${item.href}/`)
-      )?.name ?? "Dashboard";
+  useEffect(() => {
+    let active = true;
+
+    async function loadUser() {
+      const raw = localStorage.getItem("skillbridge_user");
+      if (!raw) return;
+
+      try {
+        const parsed = JSON.parse(raw);
+        let fullName = parsed.full_name;
+
+        if (!fullName && parsed.user_id) {
+          const { data } = await supabase
+            .from("profile")
+            .select("full_name")
+            .eq("user_id", parsed.user_id)
+            .single();
+
+          if (data?.full_name) {
+            fullName = data.full_name;
+            localStorage.setItem(
+              "skillbridge_user",
+              JSON.stringify({ ...parsed, full_name: fullName })
+            );
+          }
+        }
+
+        if (active) {
+          setUserInfo({ name: fullName, email: parsed.email });
+        }
+      } catch {
+        // Ignore malformed storage
+      }
+    }
+
+    loadUser();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  async function handleSignOut() {
+    await supabase.auth.signOut();
+    localStorage.removeItem("skillbridge_user");
+    router.push("/login");
+    router.refresh();
+  }
+
+  const currentPage = pathname.endsWith("/profile")
+    ? "Profile"
+    : [...navigation]
+        .sort((a, b) => b.href.length - a.href.length)
+        .find(
+          (item) =>
+            pathname === item.href || pathname.startsWith(`${item.href}/`)
+        )?.name ?? "Dashboard";
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      {/* Sidebar */}
       <Sidebar
         navigation={navigation}
         workspaceLabel={config.workspaceLabel}
         institutionName={config.institutionName}
-        accountName={config.accountName}
-        accountEmail={config.accountEmail}
+        accountName={userInfo.name || config.accountName}
+        accountEmail={userInfo.email || config.accountEmail}
+        profileHref={role === "admin" ? "/admin" : `/${role}/profile`}
+        onSignOut={handleSignOut}
         mobileOpen={mobileOpen}
         onMobileClose={() => setMobileOpen(false)}
       />
 
-      {/* Main area */}
       <div className="flex min-w-0 flex-1 flex-col">
         <TopNavbar
           workspace={config.workspaceLabel}
@@ -82,7 +133,6 @@ function ShellContent({ role, children }: AppShellProps) {
           onMenuClick={() => setMobileOpen(true)}
         />
 
-        {/* Scrollable page content */}
         <main className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-4 sm:p-6 xl:p-8">
           {children}
         </main>
