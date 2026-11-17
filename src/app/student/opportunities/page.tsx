@@ -4,12 +4,18 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import Link from "next/link";
 
+type OpportunitySkill = {
+  skill_id: string;
+  skill_name: string;
+  required_level: number;
+};
+
 type Opportunity = {
   opportunity_id: string;
   title: string;
   opportunity_type: string | null;
   description: string | null;
-  required_skills: string[] | null;
+  skills: OpportunitySkill[];
   location: string | null;
   arrangement: string | null;
   application_deadline: string | null;
@@ -24,7 +30,6 @@ const ITEMS_PER_PAGE = 6;
 const normalize = (value: string | null | undefined) =>
   (value ?? "").trim().toLowerCase();
 
-// Stable deterministic pseudo-random match score based on IDs so it doesn't shuffle on every render
 const getStableMatchScore = (userId: string, oppId: string) => {
   const combined = userId + oppId;
   let hash = 0;
@@ -32,7 +37,7 @@ const getStableMatchScore = (userId: string, oppId: string) => {
     hash = (hash << 5) - hash + combined.charCodeAt(i);
     hash |= 0;
   }
-  return Math.abs(hash % 31) + 70; // Range: 70 to 100
+  return Math.abs(hash % 31) + 70;
 };
 
 export default function StudentOpportunities() {
@@ -46,9 +51,7 @@ export default function StudentOpportunities() {
   const [selectedLocation, setSelectedLocation] = useState("");
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [selectedArrangements, setSelectedArrangements] = useState<string[]>([]);
-  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [matchScore, setMatchScore] = useState("Any Match");
-  const [postedWithin, setPostedWithin] = useState("All time");
   const [showSavedOnly, setShowSavedOnly] = useState(false);
 
   // Sorting & Pagination
@@ -67,12 +70,15 @@ export default function StudentOpportunities() {
       const currentUser = storedUser ? JSON.parse(storedUser) : null;
       const currentUserId = currentUser?.user_id ?? "guest";
 
-      // 1. Fetch open listings and profiles concurrently
       const [oppsResult, savedResult] = await Promise.all([
-        supabase.from("opportunity").select("*").eq("status", "open").order("created_at", { ascending: false }),
-        currentUserId !== "guest" 
+        supabase
+          .from("opportunity")
+          .select("*, opportunity_skill(required_level, skill(skill_id, skill_name))")
+          .eq("status", "open")
+          .order("created_at", { ascending: false }),
+        currentUserId !== "guest"
           ? supabase.from("saved_opportunity").select("opportunity_id").eq("user_id", currentUserId)
-          : Promise.resolve({ data: [], error: null })
+          : Promise.resolve({ data: [], error: null }),
       ]);
 
       if (oppsResult.error) {
@@ -100,8 +106,17 @@ export default function StudentOpportunities() {
 
       const formattedData: Opportunity[] = rawOpps.map((item) => {
         const company = profiles?.find((p) => p.user_id === item.organizer_id);
+        const skills: OpportunitySkill[] = (item.opportunity_skill ?? [])
+          .filter((os: { skill: { skill_id: string; skill_name: string } | null }) => os.skill)
+          .map((os: { required_level: number; skill: { skill_id: string; skill_name: string } }) => ({
+            skill_id: os.skill.skill_id,
+            skill_name: os.skill.skill_name,
+            required_level: os.required_level,
+          }));
+
         return {
           ...item,
+          skills,
           company: company?.company_name ?? "Unknown Company",
           match: getStableMatchScore(currentUserId, item.opportunity_id),
         };
@@ -114,7 +129,6 @@ export default function StudentOpportunities() {
     fetchOpportunitiesAndSaves();
   }, []);
 
-  // Dynamic filter options
   const opportunityTypes = useMemo(
     () => [...new Set(opportunities.map((item) => item.opportunity_type?.trim()).filter(Boolean))].sort() as string[],
     [opportunities]
@@ -149,7 +163,7 @@ export default function StudentOpportunities() {
           item.title,
           item.company,
           item.description ?? "",
-          ...(item.required_skills ?? []),
+          ...item.skills.map((s) => s.skill_name),
         ]
           .map(normalize)
           .join(" ");
@@ -179,16 +193,6 @@ export default function StudentOpportunities() {
       results = results.filter((item) => item.match >= 90);
     }
 
-    if (postedWithin !== "All time") {
-      const now = new Date();
-      const daysLimit = postedWithin === "24 hours" ? 1 : Number.parseInt(postedWithin, 10);
-      results = results.filter((item) => {
-        const postedDate = new Date(item.created_at);
-        const diffDays = (now.getTime() - postedDate.getTime()) / (1000 * 60 * 60 * 24);
-        return diffDays >= 0 && diffDays <= daysLimit;
-      });
-    }
-
     if (sortBy === "Recently Posted") {
       results.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     } else if (sortBy === "Best Match") {
@@ -202,7 +206,7 @@ export default function StudentOpportunities() {
     }
 
     return results;
-  }, [opportunities, searchKeyword, selectedLocation, selectedTypes, selectedArrangements, matchScore, postedWithin, sortBy, savedIds, showSavedOnly]);
+  }, [opportunities, searchKeyword, selectedLocation, selectedTypes, selectedArrangements, matchScore, sortBy, savedIds, showSavedOnly]);
 
   const totalPages = Math.ceil(filteredOpportunities.length / ITEMS_PER_PAGE);
   const paginatedOpportunities = filteredOpportunities.slice(
@@ -248,8 +252,8 @@ export default function StudentOpportunities() {
             setCurrentPage(1);
           }}
           className={`rounded-lg border px-4 py-2 text-sm font-medium transition-colors cursor-pointer ${
-            showSavedOnly 
-              ? "bg-blue-600 text-white border-blue-600 hover:bg-blue-700" 
+            showSavedOnly
+              ? "bg-blue-600 text-white border-blue-600 hover:bg-blue-700"
               : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
           }`}
         >
@@ -263,7 +267,12 @@ export default function StudentOpportunities() {
           type="text"
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && { setSearchKeyword: setSearchInput, setCurrentPage: 1 }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              setSearchKeyword(searchInput);
+              setCurrentPage(1);
+            }
+          }}
           placeholder="Search by title, company, or skills..."
           className="min-w-0 flex-1 rounded-lg border border-gray-300 px-4 py-3 text-sm outline-none focus:border-blue-500"
         />
@@ -277,12 +286,17 @@ export default function StudentOpportunities() {
         >
           <option value="">All Locations</option>
           {locations.map((loc) => (
-            <option key={loc} value={loc}>{loc}</option>
+            <option key={loc} value={loc}>
+              {loc}
+            </option>
           ))}
         </select>
         <button
-          onClick={() => { setSearchKeyword(searchInput); setCurrentPage(1); }}
-          className="rounded-lg bg-blue-600 px-6 py-3 text-sm font-medium text-white hover:bg-blue-700"
+          onClick={() => {
+            setSearchKeyword(searchInput);
+            setCurrentPage(1);
+          }}
+          className="rounded-lg bg-blue-600 px-6 py-3 text-sm font-medium text-white hover:bg-blue-700 cursor-pointer"
         >
           Search
         </button>
@@ -292,7 +306,18 @@ export default function StudentOpportunities() {
         <aside className="w-full shrink-0 space-y-6 rounded-xl border border-gray-200 bg-white p-5 lg:w-64">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold text-gray-900">Filters</h2>
-            <button onClick={() => { setSelectedTypes([]); setSelectedArrangements([]); setSearchInput(""); setSearchKeyword(""); setSelectedLocation(""); setCurrentPage(1); }} className="text-sm font-medium text-blue-600 hover:underline">
+            <button
+              onClick={() => {
+                setSelectedTypes([]);
+                setSelectedArrangements([]);
+                setSearchInput("");
+                setSearchKeyword("");
+                setSelectedLocation("");
+                setMatchScore("Any Match");
+                setCurrentPage(1);
+              }}
+              className="text-sm font-medium text-blue-600 hover:underline cursor-pointer"
+            >
               Clear all
             </button>
           </div>
@@ -339,7 +364,10 @@ export default function StudentOpportunities() {
                   type="radio"
                   name="matchScore"
                   checked={matchScore === item}
-                  onChange={() => { setMatchScore(item); setCurrentPage(1); }}
+                  onChange={() => {
+                    setMatchScore(item);
+                    setCurrentPage(1);
+                  }}
                   className="border-gray-300 text-blue-600 focus:ring-blue-500"
                 />
                 {item}
@@ -355,7 +383,10 @@ export default function StudentOpportunities() {
             </p>
             <select
               value={sortBy}
-              onChange={(e) => { setSortBy(e.target.value); setCurrentPage(1); }}
+              onChange={(e) => {
+                setSortBy(e.target.value);
+                setCurrentPage(1);
+              }}
               className="rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white"
             >
               <option>Best Match</option>
@@ -412,9 +443,9 @@ export default function StudentOpportunities() {
                     </p>
 
                     <div className="mt-4 flex flex-wrap gap-1.5">
-                      {(opportunity.required_skills ?? []).slice(0, 4).map((skill) => (
-                        <span key={skill} className="rounded-md bg-gray-100 px-2.5 py-1 text-xs text-gray-600">
-                          {skill}
+                      {opportunity.skills.slice(0, 4).map((s) => (
+                        <span key={s.skill_id} className="rounded-md bg-gray-100 px-2.5 py-1 text-xs text-gray-600">
+                          {s.skill_name} · L{s.required_level}
                         </span>
                       ))}
                     </div>
@@ -451,7 +482,7 @@ export default function StudentOpportunities() {
               <button
                 disabled={currentPage === 1}
                 onClick={() => setCurrentPage((p) => p - 1)}
-                className="rounded-lg border px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-40"
+                className="rounded-lg border px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
               >
                 Previous
               </button>
@@ -459,7 +490,9 @@ export default function StudentOpportunities() {
                 <button
                   key={page}
                   onClick={() => setCurrentPage(page)}
-                  className={`rounded-lg px-3 py-2 text-sm ${currentPage === page ? "bg-blue-600 text-white" : "border"}`}
+                  className={`rounded-lg px-3 py-2 text-sm cursor-pointer ${
+                    currentPage === page ? "bg-blue-600 text-white" : "border"
+                  }`}
                 >
                   {page}
                 </button>
@@ -467,7 +500,7 @@ export default function StudentOpportunities() {
               <button
                 disabled={currentPage === totalPages}
                 onClick={() => setCurrentPage((p) => p + 1)}
-                className="rounded-lg border px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-40"
+                className="rounded-lg border px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
               >
                 Next
               </button>
