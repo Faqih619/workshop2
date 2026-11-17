@@ -30,6 +30,7 @@ export default function EmployerOpportunities() {
 
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [loading, setLoading] = useState(true);
+  const [closingId, setClosingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
@@ -136,8 +137,6 @@ export default function EmployerOpportunities() {
   );
 
   const totalPages = Math.max(1, Math.ceil(filteredOpportunities.length / PAGE_SIZE));
-  
-  // Keep currentPage bounded to avoid out-of-range display bugs when filtering
   const safeCurrentPage = Math.min(currentPage, totalPages);
 
   const paginatedOpportunities = useMemo(() => {
@@ -146,10 +145,38 @@ export default function EmployerOpportunities() {
   }, [filteredOpportunities, safeCurrentPage]);
 
   const handleEdit = (opportunity: Opportunity) => {
-    const route = opportunity.status === "draft"
-      ? `/employer/opportunities/create?id=${encodeURIComponent(opportunity.opportunity_id)}`
-      : `/employer/opportunities/edit/${encodeURIComponent(opportunity.opportunity_id)}`;
+    const route =
+      opportunity.status === "draft"
+        ? `/employer/opportunities/create?id=${encodeURIComponent(opportunity.opportunity_id)}`
+        : `/employer/opportunities/edit/${encodeURIComponent(opportunity.opportunity_id)}`;
     router.push(route);
+  };
+
+  const handleClose = async (opportunity: Opportunity) => {
+    const confirmed = window.confirm(
+      `Close "${opportunity.title}"? Students will no longer be able to apply.`
+    );
+    if (!confirmed) return;
+
+    setClosingId(opportunity.opportunity_id);
+    setErrorMessage("");
+
+    const { error } = await supabase
+      .from("opportunity")
+      .update({ status: "closed", updated_at: new Date().toISOString() })
+      .eq("opportunity_id", opportunity.opportunity_id);
+
+    if (error) {
+      setErrorMessage(`Unable to close opportunity: ${error.message}`);
+    } else {
+      setOpportunities((prev) =>
+        prev.map((item) =>
+          item.opportunity_id === opportunity.opportunity_id ? { ...item, status: "closed" } : item
+        )
+      );
+    }
+
+    setClosingId(null);
   };
 
   const handleDelete = async (opportunity: Opportunity) => {
@@ -180,10 +207,14 @@ export default function EmployerOpportunities() {
 
   const getStatusStyle = (status: string | null) => {
     switch (status) {
-      case "open": return "bg-green-50 text-green-700";
-      case "draft": return "bg-amber-50 text-amber-700";
-      case "closed": return "bg-slate-100 text-slate-600";
-      default: return "bg-slate-100 text-slate-600";
+      case "open":
+        return "bg-green-50 text-green-700";
+      case "draft":
+        return "bg-amber-50 text-amber-700";
+      case "closed":
+        return "bg-slate-100 text-slate-600";
+      default:
+        return "bg-slate-100 text-slate-600";
     }
   };
 
@@ -223,7 +254,10 @@ export default function EmployerOpportunities() {
                 <button
                   key={tab.value}
                   type="button"
-                  onClick={() => { setStatusFilter(tab.value); setCurrentPage(1); }}
+                  onClick={() => {
+                    setStatusFilter(tab.value);
+                    setCurrentPage(1);
+                  }}
                   className={`border-b-2 pb-3 text-sm font-medium transition cursor-pointer ${
                     active ? "border-blue-600 text-blue-600" : "border-transparent text-slate-500 hover:text-slate-800"
                   }`}
@@ -251,7 +285,10 @@ export default function EmployerOpportunities() {
             <input
               type="text"
               value={search}
-              onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setCurrentPage(1);
+              }}
               placeholder="Search by opportunity title, type or location"
               className="w-full rounded-lg border border-slate-300 py-2.5 pl-9 pr-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             />
@@ -260,7 +297,10 @@ export default function EmployerOpportunities() {
           <div className="flex gap-2">
             <select
               value={statusFilter}
-              onChange={(e) => { setStatusFilter(e.target.value as StatusFilter); setCurrentPage(1); }}
+              onChange={(e) => {
+                setStatusFilter(e.target.value as StatusFilter);
+                setCurrentPage(1);
+              }}
               className="rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-blue-500"
             >
               <option value="all">All statuses</option>
@@ -311,7 +351,9 @@ export default function EmployerOpportunities() {
                 <tr>
                   <td colSpan={6} className="px-3 py-12 text-center">
                     <p className="text-sm font-medium text-slate-700">No opportunities found.</p>
-                    <p className="mt-1 text-xs text-slate-500">Try changing your search or filters, or create a new opportunity.</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Try changing your search or filters, or create a new opportunity.
+                    </p>
                   </td>
                 </tr>
               ) : (
@@ -327,6 +369,16 @@ export default function EmployerOpportunities() {
                         >
                           Edit
                         </button>
+                        {opportunity.status === "open" && (
+                          <button
+                            type="button"
+                            disabled={closingId === opportunity.opportunity_id}
+                            onClick={() => handleClose(opportunity)}
+                            className="rounded-md border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-100 disabled:opacity-50 cursor-pointer"
+                          >
+                            {closingId === opportunity.opportunity_id ? "Closing..." : "Close"}
+                          </button>
+                        )}
                         <button
                           type="button"
                           disabled={deletingId === opportunity.opportunity_id}
@@ -360,12 +412,18 @@ export default function EmployerOpportunities() {
 
                     {/* Deadline */}
                     <td className="whitespace-nowrap px-3 py-4 text-sm text-slate-600">
-                      {opportunity.application_deadline ? formatDate(opportunity.application_deadline) : "Not specified"}
+                      {opportunity.application_deadline
+                        ? formatDate(opportunity.application_deadline)
+                        : "Not specified"}
                     </td>
 
                     {/* Status */}
                     <td className="px-3 py-4">
-                      <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${getStatusStyle(opportunity.status)}`}>
+                      <span
+                        className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${getStatusStyle(
+                          opportunity.status
+                        )}`}
+                      >
                         {statusLabels[opportunity.status ?? ""] ?? opportunity.status ?? "Unknown"}
                       </span>
                     </td>

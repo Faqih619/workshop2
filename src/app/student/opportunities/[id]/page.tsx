@@ -5,12 +5,19 @@ import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import Link from "next/link";
 
+type OpportunitySkill = {
+  skill_id: string;
+  skill_name: string;
+  required_level: number;
+};
+
 type OpportunityDetail = {
   opportunity_id: string;
   title: string;
   opportunity_type: string | null;
+  status: string | null;
   description: string | null;
-  required_skills: string[] | null;
+  skills: OpportunitySkill[];
   location: string | null;
   arrangement: string | null;
   application_deadline: string | null;
@@ -44,10 +51,9 @@ export default function OpportunityDetailPage() {
       if (!opportunityId) return;
       setLoading(true);
 
-      // 1. Fetch opportunity by ID
       const { data: oppData, error: oppError } = await supabase
         .from("opportunity")
-        .select("*")
+        .select("*, opportunity_skill(required_level, skill(skill_id, skill_name))")
         .eq("opportunity_id", opportunityId)
         .maybeSingle();
 
@@ -61,20 +67,33 @@ export default function OpportunityDetailPage() {
       const currentUser = storedUser ? JSON.parse(storedUser) : null;
       const currentUserId = currentUser?.user_id;
 
-      // 2. Fetch profile and application status concurrently
       const [profileRes, appRes] = await Promise.all([
         supabase.from("profile").select("company_name").eq("user_id", oppData.organizer_id).maybeSingle(),
-        currentUserId 
-          ? supabase.from("application").select("application_id").eq("student_id", currentUserId).eq("opportunity_id", opportunityId).maybeSingle()
-          : Promise.resolve({ data: null })
+        currentUserId
+          ? supabase
+              .from("application")
+              .select("application_id")
+              .eq("student_id", currentUserId)
+              .eq("opportunity_id", opportunityId)
+              .maybeSingle()
+          : Promise.resolve({ data: null }),
       ]);
 
       if (appRes.data) {
         setApplied(true);
       }
 
+      const skills: OpportunitySkill[] = (oppData.opportunity_skill ?? [])
+        .filter((os: { skill: { skill_id: string; skill_name: string } | null }) => os.skill)
+        .map((os: { required_level: number; skill: { skill_id: string; skill_name: string } }) => ({
+          skill_id: os.skill.skill_id,
+          skill_name: os.skill.skill_name,
+          required_level: os.required_level,
+        }));
+
       setOpportunity({
         ...oppData,
+        skills,
         company: profileRes.data?.company_name ?? "Unknown Company",
       });
       setLoading(false);
@@ -84,6 +103,8 @@ export default function OpportunityDetailPage() {
   }, [opportunityId]);
 
   const handleApply = async () => {
+    if (opportunity?.status !== "open") return;
+
     const storedUser = localStorage.getItem("skillbridge_user");
     const currentUser = storedUser ? JSON.parse(storedUser) : null;
     const currentUserId = currentUser?.user_id;
@@ -96,13 +117,11 @@ export default function OpportunityDetailPage() {
 
     setApplying(true);
 
-    const { error: applyError } = await supabase
-      .from("application")
-      .insert({
-        student_id: currentUserId,
-        opportunity_id: opportunityId,
-        status: "submitted",
-      });
+    const { error: applyError } = await supabase.from("application").insert({
+      student_id: currentUserId,
+      opportunity_id: opportunityId,
+      status: "submitted",
+    });
 
     setApplying(false);
 
@@ -146,6 +165,8 @@ export default function OpportunityDetailPage() {
     );
   }
 
+  const isClosed = opportunity.status !== "open";
+
   return (
     <div className="mx-auto max-w-6xl space-y-6 pb-12">
       {/* Back Link */}
@@ -168,14 +189,16 @@ export default function OpportunityDetailPage() {
 
           <button
             onClick={handleApply}
-            disabled={applying || applied}
+            disabled={applying || applied || isClosed}
             className={`rounded-lg px-6 py-3 text-sm font-semibold text-white shadow-sm transition-all cursor-pointer ${
               applied
                 ? "bg-emerald-600 hover:bg-emerald-700"
+                : isClosed
+                ? "bg-gray-400 cursor-not-allowed"
                 : "bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
             }`}
           >
-            {applied ? "Already Applied" : applying ? "Submitting..." : "Apply Now"}
+            {applied ? "Already Applied" : isClosed ? "Closed" : applying ? "Submitting..." : "Apply Now"}
           </button>
         </div>
 
@@ -220,13 +243,13 @@ export default function OpportunityDetailPage() {
           )}
 
           {/* Required Skills */}
-          {opportunity.required_skills && opportunity.required_skills.length > 0 && (
+          {opportunity.skills.length > 0 && (
             <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
               <h2 className="text-lg font-semibold text-gray-900">Required Skills</h2>
               <div className="mt-3 flex flex-wrap gap-2">
-                {opportunity.required_skills.map((skill) => (
-                  <span key={skill} className="rounded-lg bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
-                    {skill}
+                {opportunity.skills.map((skill) => (
+                  <span key={skill.skill_id} className="rounded-lg bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
+                    {skill.skill_name} · L{skill.required_level}
                   </span>
                 ))}
               </div>
@@ -255,7 +278,7 @@ export default function OpportunityDetailPage() {
               <p className="text-xs text-gray-400">Compensation</p>
               <p className="mt-1 text-sm font-medium text-gray-800">
                 {opportunity.compensation_min !== null && opportunity.compensation_max !== null
-                  ? `MYR ${opportunity.compensation_min} - ${opportunity.compensation_max} (${opportunity.compensation_type ?? "Monthly"})`
+                  ? `MYR ${opportunity.compensation_min} - ${opportunity.compensation_max} (${opportunity.compensation_type ?? "Unpaid"})`
                   : "Unspecified"}
               </p>
             </div>

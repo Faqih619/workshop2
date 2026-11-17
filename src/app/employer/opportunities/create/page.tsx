@@ -39,7 +39,6 @@ type OpportunityForm = {
   description: string;
   responsibilities: string;
   qualifications: string;
-  is_visible: boolean;
   allow_ai_matching: boolean;
   notify_new_applicants: boolean;
 };
@@ -61,7 +60,6 @@ const initialForm: OpportunityForm = {
   description: "",
   responsibilities: "",
   qualifications: "",
-  is_visible: true,
   allow_ai_matching: true,
   notify_new_applicants: true,
 };
@@ -167,7 +165,6 @@ export default function CreateOpportunity() {
           description: opportunity.description ?? "",
           responsibilities: opportunity.responsibilities ?? "",
           qualifications: opportunity.qualifications ?? "",
-          is_visible: opportunity.is_visible ?? true,
           allow_ai_matching: opportunity.allow_ai_matching ?? true,
           notify_new_applicants: opportunity.notify_new_applicants ?? true,
         });
@@ -318,7 +315,6 @@ export default function CreateOpportunity() {
         description: form.description.trim() || null,
         responsibilities: form.responsibilities.trim() || null,
         qualifications: form.qualifications.trim() || null,
-        is_visible: form.is_visible,
         allow_ai_matching: form.allow_ai_matching,
         notify_new_applicants: form.notify_new_applicants,
         organizer_id: employer.user_id,
@@ -422,6 +418,12 @@ export default function CreateOpportunity() {
       {successMessage && (
         <div role="status" className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
           {successMessage}
+        </div>
+      )}
+
+      {loadingOpportunity && (
+        <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500">
+          Loading opportunity details...
         </div>
       )}
 
@@ -579,11 +581,11 @@ export default function CreateOpportunity() {
                   value={form.compensation_type}
                   onChange={(e) => updateField("compensation_type", e.target.value)}
                 >
-                  <option value="">Not specified</option>
-                  <option value="paid">Paid</option>
-                  <option value="unpaid">Unpaid</option>
+                  <option value="">Unpaid / Not specified</option>
+                  <option value="monthly">Monthly</option>
                   <option value="allowance">Allowance</option>
-                  <option value="fixed">Fixed Compensation</option>
+                  <option value="fixed">Fixed</option>
+                  <option value="prize">Prize</option>
                 </select>
               </div>
 
@@ -750,24 +752,11 @@ export default function CreateOpportunity() {
 
           <section className={sectionClass}>
             <div className="mb-4">
-              <h2 className="text-lg font-semibold text-slate-900">5. Visibility & Publishing</h2>
+              <h2 className="text-lg font-semibold text-slate-900">5. Preferences</h2>
               <p className="mt-1 text-sm text-slate-500">Configure how your opportunity is managed.</p>
             </div>
 
             <div className="space-y-4">
-              <label className="flex cursor-pointer items-start gap-3">
-                <input
-                  type="checkbox"
-                  checked={form.is_visible}
-                  onChange={(e) => updateField("is_visible", e.target.checked)}
-                  className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600"
-                />
-                <span>
-                  <span className="block text-sm font-medium text-slate-800">Visible to students</span>
-                  <span className="text-xs text-slate-500">Allow students to see this listing.</span>
-                </span>
-              </label>
-
               <label className="flex cursor-pointer items-start gap-3">
                 <input
                   type="checkbox"
@@ -797,177 +786,171 @@ export default function CreateOpportunity() {
           </section>
 
           {/* Preview Section */}
-<section className={sectionClass}>
-  <h2 className="text-lg font-semibold text-slate-900">Listing Preview</h2>
-  <p className="mt-1 text-sm text-slate-500">Preview the full student detail view before saving.</p>
+          <section className={sectionClass}>
+            <h2 className="text-lg font-semibold text-slate-900">Listing Preview</h2>
+            <p className="mt-1 text-sm text-slate-500">Preview the full student detail view before saving.</p>
 
-  <button
-    type="button"
-    onClick={() => setShowPreview(true)}
-    className="mt-4 w-full rounded-lg border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-medium text-blue-700 hover:bg-blue-100 cursor-pointer"
-  >
-    Preview Full Detail Page
-  </button>
+            <button
+              type="button"
+              onClick={() => setShowPreview(true)}
+              className="mt-4 w-full rounded-lg border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-medium text-blue-700 hover:bg-blue-100 cursor-pointer"
+            >
+              Preview Full Detail Page
+            </button>
 
-  {showPreview && (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
-      <div className="relative flex max-h-[90vh] w-full max-w-5xl flex-col rounded-2xl bg-slate-50 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-        
-        {/* Modal Top Bar */}
-        <div className="flex items-center justify-between border-b bg-white px-6 py-4 shrink-0">
-          <div>
-            <h3 className="text-base font-bold text-slate-900">Student Detail View Preview</h3>
-            <p className="text-xs text-slate-500">Live preview using current form values</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setShowPreview(false)}
-            className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-200 cursor-pointer"
-          >
-            ✕ Close Preview
-          </button>
-        </div>
-
-        {/* Scrollable Preview Body (Exact replica of OpportunityDetailPage) */}
-        <div className="flex-1 overflow-y-auto p-6 sm:p-8 space-y-6">
-          <div className="mx-auto max-w-6xl space-y-6 pb-12">
-            
-            {/* Back Link Mock */}
-            <span className="inline-block text-sm font-medium text-blue-600">
-              ← Back to Opportunity Hub
-            </span>
-
-            {/* Header Card */}
-            <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-xl font-bold text-blue-600">
-                    {form.title ? form.title.charAt(0).toUpperCase() : "C"}
-                  </div>
-                  <div>
-                    <h1 className="text-2xl font-bold text-gray-900">{form.title || "Untitled Opportunity"}</h1>
-                    <p className="text-sm text-gray-500">Your Company Name</p>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  disabled
-                  className="rounded-lg bg-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-sm opacity-90 cursor-not-allowed"
-                >
-                  Apply Now
-                </button>
-              </div>
-
-              {/* Quick Badges */}
-              <div className="mt-6 flex flex-wrap gap-3 border-t border-gray-100 pt-6 text-xs text-gray-600">
-                <span className="rounded-md bg-gray-100 px-3 py-1 font-medium">📍 {form.location || "Remote"}</span>
-                <span className="rounded-md bg-gray-100 px-3 py-1 font-medium">💼 {form.arrangement ? form.arrangement.charAt(0).toUpperCase() + form.arrangement.slice(1) : "Unspecified"}</span>
-                <span className="rounded-md bg-gray-100 px-3 py-1 font-medium">🏷️ {form.opportunity_type ? form.opportunity_type.replaceAll("_", " ") : "General"}</span>
-                {form.department && (
-                  <span className="rounded-md bg-gray-100 px-3 py-1 font-medium">🏢 {form.department}</span>
-                )}
-              </div>
-            </div>
-
-            {/* Main Content Grid */}
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-              <div className="space-y-6 lg:col-span-2">
-                <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-                  <h2 className="text-lg font-semibold text-gray-900">About the Opportunity</h2>
-                  <p className="mt-3 text-sm text-gray-700 leading-relaxed whitespace-pre-line">
-                    {form.description || "No description provided."}
-                  </p>
-                </section>
-
-                {form.responsibilities && (
-                  <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-                    <h2 className="text-lg font-semibold text-gray-900">Key Responsibilities</h2>
-                    <p className="mt-3 text-sm text-gray-700 leading-relaxed whitespace-pre-line">
-                      {form.responsibilities}
-                    </p>
-                  </section>
-                )}
-
-                {form.qualifications && (
-                  <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-                    <h2 className="text-lg font-semibold text-gray-900">Qualifications & Requirements</h2>
-                    <p className="mt-3 text-sm text-gray-700 leading-relaxed whitespace-pre-line">
-                      {form.qualifications}
-                    </p>
-                  </section>
-                )}
-
-                {selectedSkills.length > 0 && (
-                  <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-                    <h2 className="text-lg font-semibold text-gray-900">Required Skills</h2>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {selectedSkills.map((skill) => (
-                        <span key={skill.skill_id} className="rounded-lg bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
-                          {skill.skill_name}
-                        </span>
-                      ))}
+            {showPreview && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
+                <div className="relative flex max-h-[90vh] w-full max-w-5xl flex-col rounded-2xl bg-slate-50 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+                  {/* Modal Top Bar */}
+                  <div className="flex items-center justify-between border-b bg-white px-6 py-4 shrink-0">
+                    <div>
+                      <h3 className="text-base font-bold text-slate-900">Student Detail View Preview</h3>
+                      <p className="text-xs text-slate-500">Live preview using current form values</p>
                     </div>
-                  </section>
-                )}
-              </div>
-
-              <aside className="space-y-6">
-                <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm space-y-4">
-                  <h3 className="font-semibold text-gray-900 border-b border-gray-100 pb-3">Key Details</h3>
-
-                  <div>
-                    <p className="text-xs text-gray-400">Application Deadline</p>
-                    <p className="mt-1 text-sm font-medium text-gray-800">{form.application_deadline || "Not specified"}</p>
+                    <button
+                      type="button"
+                      onClick={() => setShowPreview(false)}
+                      className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-200 cursor-pointer"
+                    >
+                      ✕ Close Preview
+                    </button>
                   </div>
 
-                  <div>
-                    <p className="text-xs text-gray-400">Timeline</p>
-                    <p className="mt-1 text-sm font-medium text-gray-800">
-                      {form.start_date || "Start"} → {form.end_date || "End"}
-                    </p>
+                  {/* Scrollable Preview Body */}
+                  <div className="flex-1 overflow-y-auto p-6 sm:p-8 space-y-6">
+                    <div className="mx-auto max-w-6xl space-y-6 pb-12">
+                      <span className="inline-block text-sm font-medium text-blue-600">
+                        ← Back to Opportunity Hub
+                      </span>
+
+                      {/* Header Card */}
+                      <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="flex items-center gap-4">
+                            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-xl font-bold text-blue-600">
+                              {form.title ? form.title.charAt(0).toUpperCase() : "C"}
+                            </div>
+                            <div>
+                              <h1 className="text-2xl font-bold text-gray-900">{form.title || "Untitled Opportunity"}</h1>
+                              <p className="text-sm text-gray-500">Your Company Name</p>
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            disabled
+                            className="rounded-lg bg-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-sm opacity-90 cursor-not-allowed"
+                          >
+                            Apply Now
+                          </button>
+                        </div>
+
+                        {/* Quick Badges */}
+                        <div className="mt-6 flex flex-wrap gap-3 border-t border-gray-100 pt-6 text-xs text-gray-600">
+                          <span className="rounded-md bg-gray-100 px-3 py-1 font-medium">📍 {form.location || "Remote"}</span>
+                          <span className="rounded-md bg-gray-100 px-3 py-1 font-medium">
+                            💼 {form.arrangement ? form.arrangement.charAt(0).toUpperCase() + form.arrangement.slice(1) : "Unspecified"}
+                          </span>
+                          <span className="rounded-md bg-gray-100 px-3 py-1 font-medium">
+                            🏷️ {form.opportunity_type ? form.opportunity_type.replaceAll("_", " ") : "General"}
+                          </span>
+                          {form.department && (
+                            <span className="rounded-md bg-gray-100 px-3 py-1 font-medium">🏢 {form.department}</span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Main Content Grid */}
+                      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                        <div className="space-y-6 lg:col-span-2">
+                          <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+                            <h2 className="text-lg font-semibold text-gray-900">About the Opportunity</h2>
+                            <p className="mt-3 text-sm text-gray-700 leading-relaxed whitespace-pre-line">
+                              {form.description || "No description provided."}
+                            </p>
+                          </section>
+
+                          {form.responsibilities && (
+                            <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+                              <h2 className="text-lg font-semibold text-gray-900">Key Responsibilities</h2>
+                              <p className="mt-3 text-sm text-gray-700 leading-relaxed whitespace-pre-line">
+                                {form.responsibilities}
+                              </p>
+                            </section>
+                          )}
+
+                          {form.qualifications && (
+                            <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+                              <h2 className="text-lg font-semibold text-gray-900">Qualifications & Requirements</h2>
+                              <p className="mt-3 text-sm text-gray-700 leading-relaxed whitespace-pre-line">
+                                {form.qualifications}
+                              </p>
+                            </section>
+                          )}
+
+                          {selectedSkills.length > 0 && (
+                            <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+                              <h2 className="text-lg font-semibold text-gray-900">Required Skills</h2>
+                              <div className="mt-3 flex flex-wrap gap-2">
+                                {selectedSkills.map((skill) => (
+                                  <span key={skill.skill_id} className="rounded-lg bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
+                                    {skill.skill_name} · L{skill.required_level}
+                                  </span>
+                                ))}
+                              </div>
+                            </section>
+                          )}
+                        </div>
+
+                        <aside className="space-y-6">
+                          <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm space-y-4">
+                            <h3 className="font-semibold text-gray-900 border-b border-gray-100 pb-3">Key Details</h3>
+
+                            <div>
+                              <p className="text-xs text-gray-400">Application Deadline</p>
+                              <p className="mt-1 text-sm font-medium text-gray-800">{form.application_deadline || "Not specified"}</p>
+                            </div>
+
+                            <div>
+                              <p className="text-xs text-gray-400">Timeline</p>
+                              <p className="mt-1 text-sm font-medium text-gray-800">
+                                {form.start_date || "Start"} → {form.end_date || "End"}
+                              </p>
+                            </div>
+
+                            <div>
+                              <p className="text-xs text-gray-400">Compensation</p>
+                              <p className="mt-1 text-sm font-medium text-gray-800">
+                                {form.compensation_min !== "" && form.compensation_max !== ""
+                                  ? `MYR ${form.compensation_min} - ${form.compensation_max} (${form.compensation_type || "Unpaid"})`
+                                  : "Unspecified"}
+                              </p>
+                            </div>
+
+                            <div>
+                              <p className="text-xs text-gray-400">Open Positions</p>
+                              <p className="mt-1 text-sm font-medium text-gray-800">{form.open_positions || 1} slot(s)</p>
+                            </div>
+                          </div>
+                        </aside>
+                      </div>
+                    </div>
                   </div>
 
-                  <div>
-                    <p className="text-xs text-gray-400">Compensation</p>
-                    <p className="mt-1 text-sm font-medium text-gray-800">
-                      {form.compensation_min !== "" && form.compensation_max !== ""
-                        ? `MYR ${form.compensation_min} - ${form.compensation_max} (${form.compensation_type || "Monthly"})`
-                        : "Unspecified"}
-                    </p>
-                  </div>
-
-                  <div>
-                    <p className="text-xs text-gray-400">Open Positions</p>
-                    <p className="mt-1 text-sm font-medium text-gray-800">{form.open_positions || 1} slot(s)</p>
+                  {/* Modal Footer */}
+                  <div className="flex justify-end border-t bg-white px-6 py-4 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setShowPreview(false)}
+                      className="rounded-lg bg-slate-900 px-5 py-2.5 text-xs font-semibold text-white hover:bg-slate-800 cursor-pointer"
+                    >
+                      Close Preview
+                    </button>
                   </div>
                 </div>
-              </aside>
-            </div>
-
-          </div>
-        </div>
-
-        {/* Modal Footer */}
-        <div className="flex justify-end border-t bg-white px-6 py-4 shrink-0">
-          <button
-            type="button"
-            onClick={() => setShowPreview(false)}
-            className="rounded-lg bg-slate-900 px-5 py-2.5 text-xs font-semibold text-white hover:bg-slate-800 cursor-pointer"
-          >
-            Close Preview
-          </button>
-        </div>
-
-      </div>
-    </div>
-  )}
-</section>
-
-/* 
-  [Ponytail Log: Replaced card preview with a full-page detail view modal replicating the exact student opportunity detail layout using live form state.]
-*/
-
+              </div>
+            )}
+          </section>
 
           <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm space-y-3">
             <button
@@ -989,7 +972,7 @@ export default function CreateOpportunity() {
             </button>
 
             <p className="mt-3 text-center text-xs text-slate-500">
-              Publishing makes this opportunity available according to your visibility settings.
+              Publishing makes this opportunity available to students immediately.
             </p>
           </section>
         </div>
@@ -997,7 +980,3 @@ export default function CreateOpportunity() {
     </div>
   );
 }
-
-/* 
-  [Ponytail Log: Preserved full editing and creation form workflows, skill association synchronization, and status handling with zero added bloat.]
-*/
