@@ -19,26 +19,28 @@ export async function POST(req: Request) {
     const { studentSkills, opportunity } = await req.json();
     const genAI = new GoogleGenerativeAI(apiKey);
 
-    // Shorter prompt = faster Gemini response
     const prompt = `Compare student skills (1-5 scale) with opportunity requirements.
-Student: ${JSON.stringify(studentSkills)}
-Role: ${opportunity.title}, Skills: ${JSON.stringify(opportunity.required_skills)}
+    Student: ${JSON.stringify(studentSkills)}
+    Role: ${opportunity.title}
+    Description: ${opportunity.description || ""}
+    Qualifications: ${opportunity.qualifications || ""}
+    Required Skills: ${JSON.stringify(opportunity.required_skills || [])}
 
-Return ONLY raw JSON (no markdown):
-{
-  "currentMatch": number,
-  "potentialMatch": number,
-  "skillGapsCount": number,
-  "skillsComparison": [{ "skill": "string", "userLevel": number, "requiredLevel": number }],
-  "actionPlan": {
-    "priorityLabel": "HIGH PRIORITY",
-    "steps": [{ "title": "string", "description": "string" }],
-    "estimatedHours": number
-  },
-  "recommendedResources": [
-    { "title": "string", "meta": "string", "skill": "string", "time": "string", "priority": "High", "actionLabel": "Start learning", "url": "string" }
-  ]
-}`;
+    Return ONLY raw JSON (no markdown):
+    {
+      "currentMatch": number,
+      "potentialMatch": number,
+      "skillGapsCount": number,
+      "skillsComparison": [{ "skill": "string", "userLevel": number, "requiredLevel": number }],
+      "actionPlan": {
+        "priorityLabel": "HIGH PRIORITY",
+        "steps": [{ "title": "string", "description": "string" }],
+        "estimatedHours": number
+      },
+      "recommendedResources": [
+        { "title": "string", "meta": "string", "skill": "string", "time": "string", "priority": "High", "actionLabel": "Start learning", "url": "string" }
+      ]
+    }`;
 
     let rawText = "";
     let lastError: unknown = null;
